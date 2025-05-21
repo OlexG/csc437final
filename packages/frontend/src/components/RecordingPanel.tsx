@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTweeps } from "../context/TweepsContext";
 
 type RecordingMode = "default" | "recording" | "playback";
 
@@ -8,12 +10,16 @@ const RecordingPanel = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   
+  // Use the tweeps context
+  const { addTweep } = useTweeps();
+  
   // Refs
   const timerIntervalRef = useRef<number | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioStreamRef = useRef<MediaStream | null>(null);
+  const navigate = useNavigate();
 
   // Initialize audio element for playback
   useEffect(() => {
@@ -158,8 +164,15 @@ const RecordingPanel = () => {
   };
   
   const postTweep = () => {
+    // Add the tweep using our context
+    addTweep("oleks", timer);
+    
+    // Alert the user and clean up
     alert("Tweep posted!");
     discardRecording();
+    
+    // Navigate back to the profile page
+    navigate("/profile/oleks");
   };
   
   return (
@@ -176,8 +189,16 @@ const RecordingPanel = () => {
         
         <div className="audio-visualizer">
           {mode === "playback" && (
-            <button className="play-button large-play" onClick={togglePlayback}>
+            <button 
+              className="play-button large-play" 
+              onClick={togglePlayback}
+              aria-label={isPlaying ? "Pause recording" : "Play recording"}
+              aria-pressed={isPlaying}
+            >
               <i className={`fas ${isPlaying ? "fa-pause" : "fa-play"}`}></i>
+              <span className="visually-hidden">
+                {isPlaying ? "Pause" : "Play"} current recording
+              </span>
             </button>
           )}
           

@@ -1,20 +1,28 @@
 import Layout from "../components/Layout";
 import Timeline from "../components/Timeline";
 import Tweep from "../components/Tweep";
+import { useTweeps } from "../context/TweepsContext";
 
 const HomePage = () => {
-  const tweeps = [
-    { id: 1, username: "lisa", duration: "1:32 min" },
-    { id: 2, username: "owen", duration: "0:35 min" },
-    { id: 3, username: "alex", duration: "2:30 min" }
-  ];
+  const { tweeps } = useTweeps();
+  
+  // Combine all users' tweeps into a single array with usernames
+  const allTweeps = Object.entries(tweeps).flatMap(([username, userTweeps]) => 
+    userTweeps.map(tweep => ({
+      ...tweep,
+      username
+    }))
+  );
+  
+  // Sort by timestamp (newest first)
+  const sortedTweeps = allTweeps.sort((a, b) => b.timestamp - a.timestamp);
 
   return (
     <Layout>
       <Timeline>
-        {tweeps.map(tweep => (
+        {sortedTweeps.map(tweep => (
           <Tweep 
-            key={tweep.id}
+            key={`${tweep.username}-${tweep.id}`}
             username={tweep.username}
             duration={tweep.duration}
           />

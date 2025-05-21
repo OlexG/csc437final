@@ -140,14 +140,29 @@ const AudioPlayer = ({ duration }: AudioPlayerProps) => {
   return (
     <div className="tweep-content">
       <div className="audio-player">
-        <button className="play-button" onClick={togglePlay}>
+        <button 
+          className="play-button" 
+          onClick={togglePlay}
+          aria-label={isPlaying ? "Pause audio" : "Play audio"}
+          aria-pressed={isPlaying}
+        >
           <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+          <span className="visually-hidden">
+            {isPlaying ? "Pause" : "Play"} audio recording ({duration})
+          </span>
         </button>
-        <div className="audio-progress">
+        <div 
+          className="audio-progress" 
+          role="progressbar" 
+          aria-valuenow={progress} 
+          aria-valuemin={0} 
+          aria-valuemax={100}
+          aria-label="Audio playback progress"
+        >
           <div className="progress-bar" style={{ width: `${progress}%` }}></div>
         </div>
       </div>
-      <div className="audio-duration">{duration}</div>
+      <div className="audio-duration" aria-hidden="true">{duration}</div>
     </div>
   );
 };
