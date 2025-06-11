@@ -1,139 +1,77 @@
 import { useState, useRef, useEffect } from "react";
+import { api } from "../utils/api";
 
 interface AudioPlayerProps {
   duration: string;
+  tweepId: string;
 }
 
-// Function to generate random noise
-const generateRandomNoise = (audioContext: AudioContext) => {
-  const bufferSize = audioContext.sampleRate * 1; // 1 second buffer
-  const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
-  const data = buffer.getChannelData(0);
-  
-  for (let i = 0; i < bufferSize; i++) {
-    // Random noise between -0.15 and 0.15 (quieter than full volume)
-    data[i] = (Math.random() * 0.3) - 0.15;
-  }
-  
-  return buffer;
-};
-
-const AudioPlayer = ({ duration }: AudioPlayerProps) => {
+const AudioPlayer = ({ duration, tweepId }: AudioPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const intervalRef = useRef<number | null>(null);
 
-  // Clean up on unmount
+  // Initialize audio element
   useEffect(() => {
+    audioElementRef.current = new Audio();
+    audioElementRef.current.addEventListener("ended", () => {
+      setIsPlaying(false);
+      setProgress(0);
+    });
+
+    audioElementRef.current.addEventListener("timeupdate", () => {
+      if (audioElementRef.current) {
+        const currentTime = audioElementRef.current.currentTime;
+        const duration = audioElementRef.current.duration;
+        if (duration > 0) {
+          setProgress((currentTime / duration) * 100);
+        }
+      }
+    });
+
+    audioElementRef.current.addEventListener("loadstart", () => {
+      setIsLoading(true);
+    });
+
+    audioElementRef.current.addEventListener("canplay", () => {
+      setIsLoading(false);
+    });
+
+    // Set the audio source
+    audioElementRef.current.src = api.getAudioUrl(tweepId);
+
+    // Clean up on unmount
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current.src = "";
       }
     };
-  }, []);
+  }, [tweepId]);
 
-  const resetProgress = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setProgress(0);
-  };
+  const togglePlay = async () => {
+    if (!audioElementRef.current) return;
 
-  const startProgressSimulation = () => {
-    // Calculate interval based on the duration string (format: "m:ss min")
-    const timeMatch = duration.match(/(\d+):(\d+)/);
-    let totalSeconds = 0;
-    
-    if (timeMatch) {
-      const minutes = parseInt(timeMatch[1], 10);
-      const seconds = parseInt(timeMatch[2], 10);
-      totalSeconds = (minutes * 60) + seconds;
-    }
-    
-    // Update progress every 100ms
-    const intervalTime = 100;
-    const steps = (totalSeconds * 1000) / intervalTime;
-    const incrementPerStep = 100 / steps;
-    
-    intervalRef.current = window.setInterval(() => {
-      setProgress(prev => {
-        const newProgress = prev + incrementPerStep;
-        if (newProgress >= 100) {
-          stopPlayback();
-          return 0;
-        }
-        return newProgress;
-      });
-    }, intervalTime);
-  };
-
-  const stopPlayback = () => {
-    if (sourceNodeRef.current) {
-      sourceNodeRef.current.stop();
-      sourceNodeRef.current = null;
-    }
-    
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    
-    setIsPlaying(false);
-  };
-
-  const startPlayback = () => {
-    // Create AudioContext if it doesn't exist
-    if (!audioContextRef.current) {
-      try {
-        audioContextRef.current = new AudioContext();
-      } catch {
-        // Fallback for older browsers
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const WebkitAudioContext = (window as any).webkitAudioContext;
-        if (WebkitAudioContext) {
-          audioContextRef.current = new WebkitAudioContext();
-        } else {
-          console.error("Web Audio API not supported in this browser");
-          return;
-        }
-      }
-    }
-    
-    // Create a source node for our random noise
-    const audioContext = audioContextRef.current;
-    // Safety check
-    if (!audioContext) {
-      console.error("Could not initialize audio context");
-      return;
-    }
-    
-    const noiseBuffer = generateRandomNoise(audioContext);
-    const sourceNode = audioContext.createBufferSource();
-    sourceNode.buffer = noiseBuffer;
-    sourceNode.loop = true;
-    sourceNode.connect(audioContext.destination);
-    sourceNode.start();
-    
-    sourceNodeRef.current = sourceNode;
-    
-    startProgressSimulation();
-    
-    setIsPlaying(true);
-  };
-
-  const togglePlay = () => {
     if (isPlaying) {
-      stopPlayback();
-      resetProgress();
+      audioElementRef.current.pause();
+      setIsPlaying(false);
     } else {
-      startPlayback();
+      try {
+        setIsLoading(true);
+        await audioElementRef.current.play();
+        setIsPlaying(true);
+      } catch (error) {
+        console.error("Error playing audio:", error);
+        alert("Failed to play audio. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -143,12 +81,17 @@ const AudioPlayer = ({ duration }: AudioPlayerProps) => {
         <button 
           className="play-button" 
           onClick={togglePlay}
+          disabled={isLoading}
           aria-label={isPlaying ? "Pause audio" : "Play audio"}
           aria-pressed={isPlaying}
         >
-          <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+          {isLoading ? (
+            <i className="fas fa-spinner fa-spin"></i>
+          ) : (
+            <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+          )}
           <span className="visually-hidden">
-            {isPlaying ? "Pause" : "Play"} audio recording ({duration})
+            {isLoading ? "Loading" : (isPlaying ? "Pause" : "Play")} audio recording ({duration})
           </span>
         </button>
         <div 
@@ -162,7 +105,9 @@ const AudioPlayer = ({ duration }: AudioPlayerProps) => {
           <div className="progress-bar" style={{ width: `${progress}%` }}></div>
         </div>
       </div>
-      <div className="audio-duration" aria-hidden="true">{duration}</div>
+      <div className="audio-duration" aria-hidden="true">
+        <span className="duration-time">{duration}</span>
+      </div>
     </div>
   );
 };

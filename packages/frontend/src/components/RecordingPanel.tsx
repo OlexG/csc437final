@@ -1,17 +1,19 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTweeps } from "../context/TweepsContext";
+import { useAuth } from "../context/AuthContext";
 
-type RecordingMode = "default" | "recording" | "playback";
+type RecordingMode = "default" | "recording" | "playback" | "posting";
 
 const RecordingPanel = () => {
   const [mode, setMode] = useState<RecordingMode>("default");
-  const [timer, setTimer] = useState("0:00");
+  const [timer, setTimer] = useState("00:00:00");
   const [isPlaying, setIsPlaying] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   
-  // Use the tweeps context
+  // Use the tweeps context and auth context
   const { addTweep } = useTweeps();
+  const { user } = useAuth();
   
   // Refs
   const timerIntervalRef = useRef<number | null>(null);
@@ -19,6 +21,7 @@ const RecordingPanel = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioStreamRef = useRef<MediaStream | null>(null);
+  const audioBlobRef = useRef<Blob | null>(null);
   const navigate = useNavigate();
 
   // Initialize audio element for playback
@@ -71,8 +74,9 @@ const RecordingPanel = () => {
     cleanupResources();
     
     // Reset state
-    setTimer("0:00");
+    setTimer("00:00:00");
     audioChunksRef.current = [];
+    audioBlobRef.current = null;
     
     const hasAccess = await requestMicrophoneAccess();
     if (!hasAccess) return;
@@ -89,6 +93,8 @@ const RecordingPanel = () => {
     
     mediaRecorder.onstop = () => {
       const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
+      audioBlobRef.current = audioBlob;
+      
       if (audioElementRef.current) {
         const url = URL.createObjectURL(audioBlob);
         audioElementRef.current.src = url;
@@ -103,12 +109,14 @@ const RecordingPanel = () => {
 
     mediaRecorder.start();
 
+    // Start timer
     let seconds = 0;
     timerIntervalRef.current = window.setInterval(() => {
       seconds++;
-      const min = Math.floor(seconds / 60);
-      const sec = seconds % 60;
-      setTimer(`${min}:${sec.toString().padStart(2, "0")}`);
+      const hours = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+      setTimer(`${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`);
     }, 1000);
     
     setMode("recording");
@@ -157,22 +165,39 @@ const RecordingPanel = () => {
 
     cleanupResources();
 
-    setTimer("0:00");
+    setTimer("00:00:00");
     audioChunksRef.current = [];
+    audioBlobRef.current = null;
     setIsPlaying(false);
     setMode("default");
   };
   
-  const postTweep = () => {
-    // Add the tweep using our context
-    addTweep("oleks", timer);
-    
-    // Alert the user and clean up
-    alert("Tweep posted!");
-    discardRecording();
-    
-    // Navigate back to the profile page
-    navigate("/profile/oleks");
+  const postTweep = async () => {
+    if (!audioBlobRef.current || !user) {
+      alert("Error: No audio recorded or user not logged in");
+      return;
+    }
+
+    setMode("posting");
+
+    try {
+      // Upload tweep to backend
+      const success = await addTweep(audioBlobRef.current, timer);
+      
+      if (success) {
+        alert("Tweep posted successfully!");
+        discardRecording();
+        // Navigate back to current user's profile page
+        navigate(`/profile/${user.username}`);
+      } else {
+        alert("Failed to post tweep. Please try again.");
+        setMode("playback");
+      }
+    } catch (error) {
+      console.error("Error posting tweep:", error);
+      alert("Failed to post tweep. Please try again.");
+      setMode("playback");
+    }
   };
   
   return (
@@ -200,6 +225,13 @@ const RecordingPanel = () => {
                 {isPlaying ? "Pause" : "Play"} current recording
               </span>
             </button>
+          )}
+          
+          {mode === "posting" && (
+            <div className="posting-status">
+              <i className="fas fa-spinner fa-spin"></i>
+              <p>Posting tweep...</p>
+            </div>
           )}
           
           {permissionDenied && mode === "default" && (
@@ -244,7 +276,7 @@ const RecordingPanel = () => {
           disabled={mode !== "playback" || isPlaying}
         >
           <i className="fas fa-paper-plane"></i>
-          <span>Post Tweep</span>
+          <span>{mode === "posting" ? "Posting..." : "Post Tweep"}</span>
         </button>
       </div>
     </>

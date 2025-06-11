@@ -187,6 +187,10 @@ a:hover {
 
 .tweep-user {
   margin-bottom: var(--spacing-xs);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
 .tweep-user a {
@@ -196,6 +200,12 @@ a:hover {
 
 .tweep-user a:hover {
   color: var(--secondary-color);
+}
+
+.tweep-timestamp {
+  font-size: var(--font-size-sm);
+  color: var(--light-text);
+  white-space: nowrap;
 }
 
 .tweep-content {
@@ -257,6 +267,21 @@ a:hover {
   font-size: var(--font-size-sm);
   color: var(--light-text);
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.duration-time {
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+}
+
+.duration-time::after {
+  content: " hrs:min:sec";
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-left: 2px;
 }
 
 .profile-header {
@@ -770,4 +795,24 @@ a:hover {
 .record-timer,
 input, button {
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.delete-tweep-btn {
+  background: none;
+  border: none;
+  color: var(--record-color);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--border-radius-md);
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  font-size: var(--font-size-sm);
+}
+
+.delete-tweep-btn:hover {
+  background-color: rgba(255, 56, 96, 0.1);
+  transform: scale(1.05);
+}
+
+.delete-tweep-btn:active {
+  transform: scale(0.95);
 } 

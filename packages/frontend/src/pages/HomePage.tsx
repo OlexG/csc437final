@@ -4,29 +4,40 @@ import Tweep from "../components/Tweep";
 import { useTweeps } from "../context/TweepsContext";
 
 const HomePage = () => {
-  const { tweeps } = useTweeps();
-  
-  // Combine all users' tweeps into a single array with usernames
-  const allTweeps = Object.entries(tweeps).flatMap(([username, userTweeps]) => 
-    userTweeps.map(tweep => ({
-      ...tweep,
-      username
-    }))
-  );
-  
-  // Sort by timestamp (newest first)
-  const sortedTweeps = allTweeps.sort((a, b) => b.timestamp - a.timestamp);
+  const { tweeps, loading } = useTweeps();
 
   return (
     <Layout>
       <Timeline>
-        {sortedTweeps.map(tweep => (
-          <Tweep 
-            key={`${tweep.username}-${tweep.id}`}
-            username={tweep.username}
-            duration={tweep.duration}
-          />
-        ))}
+        {loading ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '2rem',
+            color: 'var(--light-text)'
+          }}>
+            <i className="fas fa-spinner fa-spin"></i>
+            <p>Loading tweeps...</p>
+          </div>
+        ) : tweeps.length > 0 ? (
+          tweeps.map(tweep => (
+            <Tweep 
+              key={tweep.id}
+              id={tweep.id}
+              username={tweep.username}
+              duration={tweep.duration}
+              createdAt={tweep.createdAt}
+            />
+          ))
+        ) : (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '2rem',
+            color: 'var(--light-text)'
+          }}>
+            <h2>Welcome to Tweeper!</h2>
+            <p>No tweeps yet. Start by creating your first audio tweet!</p>
+          </div>
+        )}
       </Timeline>
     </Layout>
   );

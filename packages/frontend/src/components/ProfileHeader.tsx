@@ -1,35 +1,28 @@
-import { useState, useEffect } from "react";
-
 interface ProfileHeaderProps {
   username: string;
   isOwnProfile?: boolean;
+  isEditing?: boolean;
+  onEdit?: () => void;
+  onSave?: () => void;
+  onCancel?: () => void;
+  editValue?: string;
+  onEditChange?: (value: string) => void;
+  editError?: string;
+  isLoading?: boolean;
 }
 
-const ProfileHeader = ({ username, isOwnProfile = false }: ProfileHeaderProps) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedName, setEditedName] = useState(username);
-  const [displayName, setDisplayName] = useState(username);
-
-  // Update state when username prop changes (when navigating between profiles)
-  useEffect(() => {
-    setDisplayName(username);
-    setEditedName(username);
-    setIsEditing(false);
-  }, [username]);
-
-  const handleEditClick = () => {
-    setIsEditing(true);
-    setEditedName(displayName);
-  };
-
-  const handleSaveClick = () => {
-    setDisplayName(editedName);
-    setIsEditing(false);
-  };
-
-  const handleCancelClick = () => {
-    setIsEditing(false);
-  };
+const ProfileHeader = ({ 
+  username, 
+  isOwnProfile = false,
+  isEditing = false,
+  onEdit,
+  onSave,
+  onCancel,
+  editValue = "",
+  onEditChange,
+  editError,
+  isLoading = false
+}: ProfileHeaderProps) => {
 
   return (
     <div className="profile-header">
@@ -37,36 +30,54 @@ const ProfileHeader = ({ username, isOwnProfile = false }: ProfileHeaderProps) =
         <div className="name-section">
           {isEditing ? (
             <>
+              <label htmlFor="name-edit" className="visually-hidden">
+                Edit your username
+              </label>
               <input
+                id="name-edit"
                 type="text"
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
+                value={editValue}
+                onChange={(e) => onEditChange?.(e.target.value)}
                 className="name-edit-input"
                 autoFocus
+                disabled={isLoading}
+                minLength={3}
+                maxLength={20}
               />
               <button 
-                onClick={handleSaveClick} 
+                onClick={onSave} 
                 className="edit-action-btn save"
-                aria-label="Save name"
+                aria-label="Save username"
+                disabled={isLoading || !editValue}
               >
-                ✓
+                {isLoading ? "..." : "✓"}
               </button>
               <button 
-                onClick={handleCancelClick} 
+                onClick={onCancel} 
                 className="edit-action-btn cancel"
                 aria-label="Cancel edit"
+                disabled={isLoading}
               >
                 ✕
               </button>
+              {editError && (
+                <div style={{ 
+                  color: 'var(--record-color)', 
+                  fontSize: 'var(--font-size-sm)',
+                  marginTop: 'var(--spacing-xs)'
+                }}>
+                  {editError}
+                </div>
+              )}
             </>
           ) : (
             <>
-              <h2>{displayName}</h2>
+              <h2>{username}</h2>
               {isOwnProfile && (
                 <button 
-                  onClick={handleEditClick} 
+                  onClick={onEdit} 
                   className="edit-name-btn"
-                  aria-label="Edit name"
+                  aria-label="Edit username"
                 >
                   <span className="edit-icon">✎ Edit</span>
                 </button>
